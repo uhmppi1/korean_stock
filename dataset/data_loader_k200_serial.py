@@ -3,10 +3,13 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+from sklearn import preprocessing
+
 
 pickle_file_path_k200_serial = 'dataset/pickle/dataset_k200_serial.pkl'
 
-def load_data(train_start_date, train_end_date, test_start_date, test_end_date, x_length, featured_columns, lognorm_columns, load_pickle=True):
+
+def load_data(train_start_date, train_end_date, test_start_date, test_end_date, x_length, featured_columns, lognorm_columns, company_code_list = mu.krx200_code_list, load_pickle=True, dataset_pickle_path=pickle_file_path_k200_serial):
     '''
     지정한 기간 데이터 가져오기
     :param datetime train_start_date: 시작일
@@ -33,16 +36,25 @@ def load_data(train_start_date, train_end_date, test_start_date, test_end_date, 
     X3_test = []
     y_test = []
 
+    market_reference_code_list = list(set(company_code_list).intersection(mu.krx200_code_list))
+
     # step 0 : 혹시 이미 저장되어 있는 데이터셋 오브젝트가 있으면 로딩하여 리턴
-    if load_pickle and os.path.exists(pickle_file_path_k200_serial):
-        with open(pickle_file_path_k200_serial, 'rb') as file:
+    if load_pickle and os.path.exists(dataset_pickle_path):
+        with open(dataset_pickle_path, 'rb') as file:
             dataset_obj = pickle.load(file)
             (X1_train, X2_train, X3_train, y_train), (X1_test, X2_test, X3_test, y_test) = dataset_obj
     else:
         # step 1 : code-date 기준으로 전체데이터 pivot table을 만든다. (최장 30초 이내 만들어짐)
-        df_k200 = mu.marcap_date_range(train_start_date, test_end_date, mu.krx200_code_list)
+        df_k200 = mu.marcap_date_range(train_start_date, test_end_date, company_code_list)
         df_k200_pv = pd.pivot_table(df_k200, index='Code', columns='Date', values=featured_columns)
         print('df_k200_pv shape : ' , df_k200_pv.shape)
+
+        # step 1.1 : apply minmax scaler to every column
+        scalers = []
+        for col in featured_columns:
+            scaler = preprocessing.MinMaxScaler()
+
+
 
         # step 2 : 전체 일자 기준으로 (x_length + 1) 길이의 시퀀스를 code별로 추출한다.
         # date_list에는 train, test 기간 전체가 다 포함되어 있다.
@@ -66,7 +78,7 @@ def load_data(train_start_date, train_end_date, test_start_date, test_end_date, 
                 print('date : %s invalidate' % predict_date)
                 continue   # 다음 날짜로 넘어가자.
 
-            for code in mu.krx200_code_list:
+            for code in company_code_list:
                 try:
                     # step 2-2 : x1 컬럼들에 대해 필요하면 log transform을 시도.
                     # 만약 데이터에 NaN이 있으면 log(NaN)을 시도하게 되므로 exception이 발생할 것이다.
@@ -76,7 +88,9 @@ def load_data(train_start_date, train_end_date, test_start_date, test_end_date, 
                              for col_idx, featured_column in enumerate(featured_columns) ]
                             for j in range(x_length) ]
                     x2 = mu.code2index[code]
-                    x3 = [ np.log(df_k200_pv['Marcap'][date_list[i + x_length - 1]][c]) for c in mu.krx200_code_list ]
+                    x3 = [ 0 if pd.isnull(df_k200_pv['Marcap'][date_list[i + x_length - 1]][c])
+                           else np.log(df_k200_pv['Marcap'][date_list[i + x_length - 1]][c])
+                            for c in market_reference_code_list ]
                     y = np.log(df_k200_pv['Marcap'][date_list[i + x_length]][code])
                     print(x1)
                     print(x2)
@@ -101,7 +115,7 @@ def load_data(train_start_date, train_end_date, test_start_date, test_end_date, 
 
         # step 3 : 구축된 dataset은 직렬화해서 pickle로 저장해 두자.
         dataset_obj = ((X1_train, X2_train, X3_train, y_train), (X1_test, X2_test, X3_test, y_test))
-        with open('pickle_file_path_k200_serial', 'wb') as file:
+        with open(dataset_pickle_path, 'wb') as file:
             pickle.dump(dataset_obj, file)
 
 

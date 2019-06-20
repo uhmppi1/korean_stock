@@ -231,7 +231,32 @@ krx200_code_list_full=[
     '105560',
     '108670',
     ]
-krx200_code_list = krx200_code_list_full
+
+krx200_code_list_major = [
+    '005930',
+    '000660',
+    '068270',
+    '207940',
+    '005935',
+    '005380',
+    '051910',
+    '005490',
+    '028260',
+    '035420',
+    '105560',
+    '017670',
+    '012330',
+    '055550',
+    '096770',
+    '051900',
+    '034730',
+    '032830',
+    '015760',
+    '009150'
+]
+
+
+krx200_code_list = krx200_code_list_major
 code2index = {code:index for index, code in enumerate(krx200_code_list)}
 index2code = {index:code for code, index in code2index.items()}
 

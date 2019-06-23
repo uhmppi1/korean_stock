@@ -112,6 +112,11 @@ class DataLoader():
                               else self.scalers['Marcap'].scale_value(np.log(df_k200_pv['Marcap'][date_list[i + x_length - 1]][c]))
                               for c in market_reference_code_list]
                         y = self.scalers['Marcap'].scale_value(np.log(df_k200_pv['Marcap'][date_list[i + x_length]][code]))
+
+                        if np.isnan(x1).any():
+                            print('Checking NaN Data for code %s, date %s' % (code, date))
+                            continue
+
                         print(x1)
                         print(x2)
                         print(x3)
@@ -259,6 +264,11 @@ class S2SDataLoader(DataLoader):
                             else df_k200_pv[featured_column][date_list[i + x_length + j]][code])
                             for col_idx, featured_column in enumerate(featured_columns)]
                             for j in range(y_length)]
+
+                        if np.isnan(x1).any():
+                            print('Checking NaN Data for code %s, date %s' % (code, date))
+                            continue
+
                         print(x1)
                         print(x2)
                         print(x3)

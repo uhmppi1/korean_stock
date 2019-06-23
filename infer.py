@@ -65,21 +65,24 @@ def predict_seq2seq_steps(encoder_model, decoder_model, input_sequence, input_co
     input_code = np.expand_dims(input_code, axis=0)
     [_, sh, sc] = encoder_model.predict([input_sequence, input_code])
 
-    i = 0
-    start_vec = np.squeeze(input_sequence, axis=0)[-1, :]
+    # print('input_sequence shape: ', input_sequence.shape)
+    # print('sh shape: ', sh.shape)
+    # print('sc shape: ', sc.shape)
+    start_vec = np.squeeze(input_sequence, axis=0)[-1, :] # shape = (3,)
+    # print('start_vec shape: ',start_vec.shape )
 
-    cur_vec = np.zeros((1, output_dim))
-    cur_vec[0, :] = start_vec
+    cur_vec = np.zeros((1, 1, output_dim))
+    cur_vec[0, 0, :] = start_vec
 
     output_sequence = []
 
     for i in range(y_step):
         x_in = [cur_vec, sh, sc]
         [new_vec, sh, sc] = decoder_model.predict(x_in)
-        cur_vec[0, :] = new_vec[0, :]
-        output_sequence.append(new_vec[0, :])
+        cur_vec[0, 0, :] = new_vec[0, 0, :]
+        output_sequence.append(new_vec[0, 0, :])
 
-    return output_sequence
+    return np.array(output_sequence)
 
 
 def infer_testset_with_seq2seq(encoder_model, decoder_model, X_test, y_test, y_step=5, index_to_compare=1):
@@ -96,6 +99,46 @@ def infer_testset_with_seq2seq(encoder_model, decoder_model, X_test, y_test, y_s
         cur_y_hat = np.squeeze(output_sequence[-1, :])
         cur_y_hat = cur_y_hat[index_to_compare]
         y_test_to_compare = y_test[i][y_step-1][index_to_compare]
+
+        print('TEST DATA %d : predicted=%f, ground_truth=%f' % (i, cur_y_hat, y_test_to_compare))
+        y_hats.append(cur_y_hat)
+        y_test_to_compares.append(y_test_to_compare)
+
+    return y_hats, y_test_to_compares
+
+
+def predict_attention_steps(model, input_sequence, input_code, output_dim=3, y_step=5):
+
+    input_sequence = np.expand_dims(input_sequence, axis=0)
+    input_code = np.expand_dims(input_code, axis=0)
+
+    start_vec = np.squeeze(input_sequence, axis=0)[-1, :] # shape = (3,)
+    cur_vec = np.zeros((1, y_step+1, output_dim))
+    cur_vec[:, 0, :] = start_vec
+
+    for i in range(y_step):
+        decode_input = cur_vec[:, :-1, :]
+        output = model.predict([input_sequence, input_code, decode_input])
+        cur_vec[:, i+1, :] = output[:, i, :]
+
+    return cur_vec[:, 1:, :]
+
+def infer_testset_with_attention(model, X_test, y_test, y_step=5, index_to_compare=1):
+    y_hats = []
+    y_test_to_compares = []
+    test_size = X_test[0].shape[0] # X1_test의 길이
+    print('test_size :', test_size)
+    for i in range(test_size):
+        input_sequence = X_test[0][i, :, :]
+        print(input_sequence.shape)
+        input_code = X_test[1][i]
+        output_sequence = predict_attention_steps(model, input_sequence, input_code, output_dim=3, y_step=5)
+        # print(output_sequence.shape)
+        cur_y_hat = np.squeeze(output_sequence)[-1, :]
+        # print(cur_y_hat.shape)
+        cur_y_hat = cur_y_hat[index_to_compare]
+        y_test_to_compare = y_test[i][y_step-1][index_to_compare]
+        # print(y_test_to_compare.shape)
 
         print('TEST DATA %d : predicted=%f, ground_truth=%f' % (i, cur_y_hat, y_test_to_compare))
         y_hats.append(cur_y_hat)

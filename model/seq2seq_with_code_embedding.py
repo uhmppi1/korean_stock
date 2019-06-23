@@ -10,7 +10,7 @@ def get_model(hidden_size=50, input_shape=(10, 3), decoder_input_shape=(5,3), co
     encoder_inputs_2 = Input(shape=(1,))
     decoder_inputs = Input(shape=decoder_input_shape)
 
-    inf_decoder_inputs = Input(shape=(None,decoder_input_shape[1]), name="inf_decoder_inputs")
+    inf_decoder_inputs = Input(shape=(1, decoder_input_shape[1]), name="inf_decoder_inputs")
     state_h_inputs = Input(shape=(hidden_size,), name="state_input_h")
     state_c_inputs = Input(shape=(hidden_size,), name="state_input_c")
 
@@ -28,14 +28,13 @@ def get_model(hidden_size=50, input_shape=(10, 3), decoder_input_shape=(5,3), co
     decoder_dense = Dense(output_dim)
     decoder_output = decoder_dense(decoder_lstm_out)
 
-    seq2seq_model = Model([encoder_inputs_1, encoder_inputs_2], decoder_output)
+    seq2seq_model = Model([encoder_inputs_1, encoder_inputs_2, decoder_inputs], decoder_output)
     print('### seq2seq_model ###')
     seq2seq_model.summary()
 
     encoder_model = Model([encoder_inputs_1, encoder_inputs_2], [encoder_outputs, state_h, state_c])
     print('### encoder_model ###')
     encoder_model.summary()
-
 
     inf_decoder_res, decoder_h, decoder_c = decoder_lstm(inf_decoder_inputs, initial_state=[state_h_inputs, state_c_inputs])
 
@@ -46,5 +45,3 @@ def get_model(hidden_size=50, input_shape=(10, 3), decoder_input_shape=(5,3), co
     decoder_model.summary()
 
     return seq2seq_model, encoder_model, decoder_model
-
-
